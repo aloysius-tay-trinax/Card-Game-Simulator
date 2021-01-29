@@ -40,8 +40,8 @@ jobs:
       matrix:
         targetPlatform:
           # - Android
-          # - iOS
-          # - StandaloneOSX
+          - iOS
+          - StandaloneOSX
           # - StandaloneLinux64
           # - WebGL
     steps:
