@@ -39,11 +39,11 @@ jobs:
       fail-fast: false
       matrix:
         targetPlatform:
-          - Android
-          - iOS
-          - StandaloneOSX
-    #          - StandaloneLinux64
-    #          - WebGL
+          # - Android
+          # - iOS
+          # - StandaloneOSX
+          # - StandaloneLinux64
+          # - WebGL
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v2
