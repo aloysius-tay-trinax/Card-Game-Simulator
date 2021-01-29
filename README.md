@@ -1,4 +1,4 @@
-# Card Game Simulator
+# Card Game Simulato
 
 ![Card Game Simulator](https://www.cardgamesimulator.com/assets/img/CGSLogo.png)
 
