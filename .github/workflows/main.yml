@@ -108,21 +108,21 @@ jobs:
           UnityPath: C:\Program Files\Unity\Editor\Unity.exe
       - name: Setup MSBuild.exe
         uses: microsoft/setup-msbuild@v1.0.2
-      - name: Restore the Wpf application to populate the obj folder
-        run: msbuild $env:SolutionPath /t:Restore /p:Configuration=$env:Configuration /p:RuntimeIdentifier=$env:RuntimeIdentifier
-        env:
-          SolutionPath: build\uwp\Card Game Simulator.sln
-          Configuration: Master
-          RuntimeIdentifier: win-x64
-      - name: Create .appxupload
-        if: false
-        run: msbuild $env:SolutionPath /p:Configuration=$env:Configuration /p:Platform=$env:TargetPlatform /p:UapAppxPackageBuildMode=$env:BuildMode /p:AppxBundle=$env:AppxBundle
-        env:
-          SolutionPath: build\uwp\Card Game Simulator.sln
-          Configuration: Master
-          TargetPlatform: x64
-          BuildMode: StoreUpload
-          AppxBundle: Always
+      # - name: Restore the Wpf application to populate the obj folder
+      #   run: msbuild $env:SolutionPath /t:Restore /p:Configuration=$env:Configuration /p:RuntimeIdentifier=$env:RuntimeIdentifier
+      #   env:
+      #     SolutionPath: build\uwp\Card Game Simulator.sln
+      #     Configuration: Master
+      #     RuntimeIdentifier: win-x64
+      # - name: Create .appxupload
+      #   if: false
+      #   run: msbuild $env:SolutionPath /p:Configuration=$env:Configuration /p:Platform=$env:TargetPlatform /p:UapAppxPackageBuildMode=$env:BuildMode /p:AppxBundle=$env:AppxBundle
+      #   env:
+      #     SolutionPath: build\uwp\Card Game Simulator.sln
+      #     Configuration: Master
+      #     TargetPlatform: x64
+      #     BuildMode: StoreUpload
+      #     AppxBundle: Always
       - name: Upload cgs-windows32
         uses: actions/upload-artifact@v2
         if: github.event.ref != 'refs/heads/develop'
@@ -135,12 +135,12 @@ jobs:
         with:
           name: cgs-windows64
           path: build/cgs-windows64
-      - name: Upload .appxupload
-        uses: actions/upload-artifact@v2
-        if: false
-        with:
-          name: cgs.appxupload
-          path: build/uwp/AppPackages/Card Game Simulator/Card Game Simulator_1.35.0.0_Master_Test/Card Game Simulator_1.35.0.0_x86_x64_arm_Master.appxupload
+      # - name: Upload .appxupload
+      #   uses: actions/upload-artifact@v2
+      #   if: false
+      #   with:
+      #     name: cgs.appxupload
+      #     path: build/uwp/AppPackages/Card Game Simulator/Card Game Simulator_1.35.0.0_Master_Test/Card Game Simulator_1.35.0.0_x86_x64_arm_Master.appxupload
 
   releaseToGooglePlay:
     name: Release to the Google Play Store
