@@ -106,7 +106,7 @@ jobs:
           path: Library
           key: Library
       - name: Build Cgs for Windows
-        run: .\build_windows.ps1
+        run: .\scripts\build_windows.ps1
         shell: powershell
         env:
           UnityPath: C:\Program Files\Unity\Editor\Unity.exe
