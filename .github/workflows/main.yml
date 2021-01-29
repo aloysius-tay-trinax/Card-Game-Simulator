@@ -1,45 +1,40 @@
 name: Test, Build, and Release CGS
 
-
 on:
   push: { branches: [develop, main] }
   release: { types: [published] }
 
+env:
+  UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+  UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+  UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
 
 jobs:
-  test:
-    name: Test
-    runs-on: ubuntu-latest
-    env:
-      UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
-      UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
-      UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-      - name: Cache Library
-        uses: actions/cache@v2
-        with:
-          path: Library
-          key: Library
-      - name: Run EditMode and PlayMode Tests
-        uses: game-ci/unity-test-runner@main
-      - name: Upload Test Results
-        uses: actions/upload-artifact@v2
-        with:
-          name: test-results
-          path: artifacts
+  # tests:
+  #   name: Test Code Quality
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Checkout Repository
+  #       uses: actions/checkout@v2
+  #       with:
+  #         fetch-depth: 0
+  #     - name: Cache Library
+  #       uses: actions/cache@v2
+  #       with:
+  #         path: Library
+  #         key: Library
+  #     - name: Run EditMode and PlayMode Tests
+  #       uses: game-ci/unity-test-runner@main
+  #     - name: Publish Test Results
+  #       if: ${{ always() }} # Avoid skipping on failed tests
+  #       uses: davidmfinol/unity-test-publisher@main
+  #       with:
+  #         githubToken: ${{ secrets.GITHUB_TOKEN }}
 
   buildWithLinux:
     name: Build for ${{ matrix.targetPlatform }}
     runs-on: ubuntu-latest
-    needs: test
-    env:
-      UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
-      UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
-      UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
+    needs: tests
     strategy:
       fail-fast: false
       matrix:
@@ -47,12 +42,13 @@ jobs:
           - Android
           - iOS
           - StandaloneOSX
-#          - StandaloneLinux64
-#          - WebGL
+    #          - StandaloneLinux64
+    #          - WebGL
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v2
         with:
+          fetch-depth: 0
           lfs: true
       - name: Cache Library
         uses: actions/cache@v2
@@ -61,7 +57,7 @@ jobs:
           key: Library-${{ matrix.targetPlatform }}
           restore-keys: Library-
       - name: Free Disk Space for Android
-        if: ${{ matrix.targetPlatform }} == 'Android'
+        if: matrix.targetPlatform == 'Android'
         run: |
           sudo swapoff -a
           sudo rm -f /swapfile
@@ -72,7 +68,6 @@ jobs:
         uses: game-ci/unity-builder@main
         with:
           targetPlatform: ${{ matrix.targetPlatform }}
-          buildsPath: builds         
           buildMethod: Cgs.Editor.BuildCgs.BuildOptions
           androidAppBundle: true
           androidKeystoreName: finoldigital.keystore
@@ -85,12 +80,13 @@ jobs:
         if: github.event.ref != 'refs/heads/develop'
         with:
           name: cgs-${{ matrix.targetPlatform }}
-          path: builds/${{ matrix.targetPlatform }}
+          path: build/${{ matrix.targetPlatform }}
 
   buildWithWindows:
     name: Build for Windows
     runs-on: windows-latest
-    needs: test
+    #needs: tests
+    #if: false
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v2
@@ -110,22 +106,17 @@ jobs:
         shell: powershell
         env:
           UnityPath: C:\Program Files\Unity\Editor\Unity.exe
-          UnityUsername: ${{ secrets.UNITY_EMAIL }}
-          UnityPassword: ${{ secrets.UNITY_PASSWORD }}
-          UnitySerial: ${{ secrets.UNITY_SERIAL }}
       - name: Setup MSBuild.exe
-        uses: microsoft/setup-msbuild@v1.0.1
-        if: false
+        uses: microsoft/setup-msbuild@v1.0.2
       - name: Restore the Wpf application to populate the obj folder
         run: msbuild $env:SolutionPath /t:Restore /p:Configuration=$env:Configuration /p:RuntimeIdentifier=$env:RuntimeIdentifier
-        if: false
         env:
           SolutionPath: build\uwp\Card Game Simulator.sln
           Configuration: Master
           RuntimeIdentifier: win-x64
       - name: Create .appxupload
-        run: msbuild $env:SolutionPath /p:Configuration=$env:Configuration /p:Platform=$env:TargetPlatform /p:UapAppxPackageBuildMode=$env:BuildMode /p:AppxBundle=$env:AppxBundle
         if: false
+        run: msbuild $env:SolutionPath /p:Configuration=$env:Configuration /p:Platform=$env:TargetPlatform /p:UapAppxPackageBuildMode=$env:BuildMode /p:AppxBundle=$env:AppxBundle
         env:
           SolutionPath: build\uwp\Card Game Simulator.sln
           Configuration: Master
@@ -137,13 +128,19 @@ jobs:
         if: github.event.ref != 'refs/heads/develop'
         with:
           name: cgs-windows32
-          path: builds/cgs-windows32
+          path: build/cgs-windows32
       - name: Upload cgs-windows64
         uses: actions/upload-artifact@v2
         if: github.event.ref != 'refs/heads/develop'
         with:
           name: cgs-windows64
-          path: builds/cgs-windows64
+          path: build/cgs-windows64
+      - name: Upload .appxupload
+        uses: actions/upload-artifact@v2
+        if: false
+        with:
+          name: cgs.appxupload
+          path: build/uwp/AppPackages/Card Game Simulator/Card Game Simulator_1.35.0.0_Master_Test/Card Game Simulator_1.35.0.0_x86_x64_arm_Master.appxupload
 
   releaseToGooglePlay:
     name: Release to the Google Play Store
@@ -153,7 +150,7 @@ jobs:
     env:
       GOOGLE_PLAY_KEY_FILE: ${{ secrets.GOOGLE_PLAY_KEY_FILE }}
       GOOGLE_PLAY_KEY_FILE_PATH: ${{ format('{0}/fastlane/api-finoldigital.json', github.workspace) }}
-      ANDROID_BUILD_FILE_PATH: ${{ format('{0}/builds/Android/Android.aab', github.workspace) }}
+      ANDROID_BUILD_FILE_PATH: ${{ format('{0}/build/Android/Android.aab', github.workspace) }}
       ANDROID_PACKAGE_NAME: com.finoldigital.cardgamesim
       RELEASE_NOTES: ${{ github.event.release.body }}
     steps:
@@ -162,8 +159,8 @@ jobs:
       - name: Download Android Artifact
         uses: actions/download-artifact@v2
         with:
-          name: cgs-android
-          path: builds/Android
+          name: cgs-Android
+          path: build/Android
       - name: Prepare for Upload
         run: |
           echo "$GOOGLE_PLAY_KEY_FILE" > $GOOGLE_PLAY_KEY_FILE_PATH
@@ -191,9 +188,10 @@ jobs:
       MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
       MATCH_PERSONAL_ACCESS_TOKEN: ${{ secrets.MATCH_PERSONAL_ACCESS_TOKEN }}
       MATCH_URL: ${{ secrets.MATCH_URL }}
-      BUILDS_PATH: ${{ format('{0}/builds', github.workspace) }}
       IOS_APP_ID: com.finoldigital.CardGameSim
+      IOS_BUILD_PATH: ${{ format('{0}/build/iOS', github.workspace) }}
       MAC_APP_ID: com.finoldigital.CardGameSimulator
+      MAC_BUILD_PATH: ${{ format('{0}/build/StandaloneOSX', github.workspace) }}
       PROJECT_NAME: Card Game Simulator
       RELEASE_NOTES: ${{ github.event.release.body }}
     steps:
@@ -203,21 +201,22 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: cgs-iOS
-          path: builds/iOS
+          path: build/iOS
       - name: Download StandaloneOSX Artifact
         uses: actions/download-artifact@v2
         with:
           name: cgs-StandaloneOSX
-          path: builds/StandaloneOSX
+          path: build/StandaloneOSX
       - name: Fix version for StandaloneOSX
         uses: maierj/fastlane-action@v1.4.0
         with:
           lane: 'fixversion'
       - name: Prepare for Upload
         run: |
-          find $BUILDS_PATH -type f -iname "*.sh" -exec chmod +x {} \;
-          chmod +x fastlane/sign-osx-build.sh
-          ./fastlane/sign-osx-build.sh
+          find $IOS_BUILD_PATH -type f -iname "*.sh" -exec chmod +x {} \;
+          find $MAC_BUILD_PATH -type f -iname "*.sh" -exec chmod +x {} \;
+          chmod +x scripts/sign-osx-build.sh
+          ./scripts/sign-osx-build.sh
       - name: Upload to the App Store
         uses: maierj/fastlane-action@v1.4.0
         with:
@@ -226,3 +225,25 @@ jobs:
         uses: maierj/fastlane-action@v1.4.0
         with:
           lane: 'mac macupload'
+
+  releaseToGitHubPages:
+    name: Release to GitHub Pages
+    runs-on: ubuntu-latest
+    needs: buildWithLinux
+    if: github.event.action == 'published'
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+      - name: Download WebGL Artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: cgs-WebGL
+          path: build/WebGL
+      - name: Commit and Push to GitHub Pages
+        run: |
+          git config --local user.name "$(git log --format='%an' HEAD^!)"
+          git config --local user.email "$(git log --format='%ae' HEAD^!)"
+          cp build/WebGL/Build/* docs/WebGL
+          git add docs/WebGL
+          git commit -m "Release to GitHub Pages"
+          git push
